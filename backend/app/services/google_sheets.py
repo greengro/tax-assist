@@ -11,7 +11,6 @@ from googleapiclient.discovery import build
 logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-SPREADSHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")
 
 HEADERS = [
     "ID", "Name", "Email", "Phone", "Company", "State",
@@ -45,20 +44,21 @@ def _fmt(val) -> str:
 
 async def ensure_headers() -> bool:
     """Write header row if row 1 is empty. Returns True if headers were written."""
+    spreadsheet_id = os.getenv("GOOGLE_SHEET_ID", "")
     service = _get_sheets_service()
-    if not service or not SPREADSHEET_ID:
+    if not service or not spreadsheet_id:
         logger.warning("[GOOGLE SHEETS] Credentials or sheet ID not set — skipping")
         return False
 
     result = service.spreadsheets().values().get(
-        spreadsheetId=SPREADSHEET_ID, range="Sheet1!A1:R1"
+        spreadsheetId=spreadsheet_id, range="Sheet1!A1:R1"
     ).execute()
     existing = result.get("values", [])
     if existing and existing[0]:
         return False
 
     service.spreadsheets().values().update(
-        spreadsheetId=SPREADSHEET_ID,
+        spreadsheetId=spreadsheet_id,
         range="Sheet1!A1:R1",
         valueInputOption="RAW",
         body={"values": [HEADERS]},
@@ -72,8 +72,9 @@ async def upsert_client(client) -> bool:
 
     Searches for existing row by client ID. If found, updates it; otherwise appends.
     """
+    spreadsheet_id = os.getenv("GOOGLE_SHEET_ID", "")
     service = _get_sheets_service()
-    if not service or not SPREADSHEET_ID:
+    if not service or not spreadsheet_id:
         logger.warning("[GOOGLE SHEETS] Credentials or sheet ID not set — skipping sync")
         return False
 
@@ -100,7 +101,7 @@ async def upsert_client(client) -> bool:
 
     # Find existing row by ID
     result = service.spreadsheets().values().get(
-        spreadsheetId=SPREADSHEET_ID, range="Sheet1!A:A"
+        spreadsheetId=spreadsheet_id, range="Sheet1!A:A"
     ).execute()
     ids = result.get("values", [])
 
@@ -116,7 +117,7 @@ async def upsert_client(client) -> bool:
     if row_index:
         # Update existing row
         service.spreadsheets().values().update(
-            spreadsheetId=SPREADSHEET_ID,
+            spreadsheetId=spreadsheet_id,
             range=f"Sheet1!A{row_index}:R{row_index}",
             valueInputOption="RAW",
             body={"values": [row]},
@@ -125,7 +126,7 @@ async def upsert_client(client) -> bool:
     else:
         # Append new row
         service.spreadsheets().values().append(
-            spreadsheetId=SPREADSHEET_ID,
+            spreadsheetId=spreadsheet_id,
             range="Sheet1!A:R",
             valueInputOption="RAW",
             insertDataOption="INSERT_ROWS",
