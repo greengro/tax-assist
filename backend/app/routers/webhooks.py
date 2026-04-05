@@ -78,14 +78,20 @@ async def handle_calendly_webhook(payload: dict, db: AsyncSession = Depends(get_
     db.add(Activity(client_id=client.id, action="Calendly booking received", details=detail))
 
     # Send welcome email (real Gmail or mock fallback)
+    welcome_subject = "Welcome to Green Grove Tax Services - Your Upcoming Consultation"
     await gmail.send_email(
         to=email,
-        subject="Welcome to Green Grove Tax Services - Your Upcoming Consultation",
+        subject=welcome_subject,
         body=f"Hi {name},\n\nThank you for booking a consultation! "
         f"Your meeting is scheduled for {meeting_time_str or 'soon'}.\n\n"
         "Please prepare: W-2s, 1099s, prior year returns.\n\n"
         "Best regards,\nGreen Grove Tax Services",
     )
+    db.add(Activity(
+        client_id=client.id,
+        action="Welcome email sent",
+        details=f"To: {email} | Subject: {welcome_subject}",
+    ))
 
     # Trigger Devin onboarding session
     devin_result = await devin_api.create_session(
@@ -159,14 +165,20 @@ async def handle_meeting_notes(
     ))
 
     # Send follow-up email (real Gmail or mock fallback)
+    followup_subject = "Next Steps - Green Grove Tax Services"
     await gmail.send_email(
         to=client.email,
-        subject="Next Steps - Green Grove Tax Services",
+        subject=followup_subject,
         body=f"Hi {client.name},\n\nThank you for meeting with us!\n\n"
         f"Please upload your documents through our secure portal:\n{portal_url}\n\n"
         "Required: W-2s, 1099s, prior year return, property tax statements.\n\n"
         "Best regards,\nGreen Grove Tax Services",
     )
+    db.add(Activity(
+        client_id=client.id,
+        action="Follow-up email sent",
+        details=f"To: {client.email} | Subject: {followup_subject}",
+    ))
 
     client.stage = PipelineStage.DOCUMENTS_REQUESTED
 
@@ -225,9 +237,10 @@ async def trigger_engagement_letter(
     )
 
     # Send email with links to the documents
+    eng_subject = "Engagement Letter & Statement of Work - Green Grove Tax Services"
     await gmail.send_email(
         to=client.email,
-        subject="Engagement Letter & Statement of Work - Green Grove Tax Services",
+        subject=eng_subject,
         body=f"Hi {client.name},\n\n"
         f"Please review and sign the following documents:\n\n"
         f"1. Engagement Letter: {letter_result['doc_url']}\n"
@@ -236,6 +249,11 @@ async def trigger_engagement_letter(
         f"Please reply to this email once you have reviewed and agree to the terms.\n\n"
         f"Best regards,\nGreen Grove Tax Services",
     )
+    db.add(Activity(
+        client_id=client.id,
+        action="Engagement letter email sent",
+        details=f"To: {client.email} | Subject: {eng_subject}",
+    ))
 
     doc_details = (
         f"Services: {services}. "
@@ -288,12 +306,18 @@ async def check_documents(client_id: int, db: AsyncSession = Depends(get_db)):
             details=f"Missing: {', '.join(missing)}. Devin session: {devin_result['session_id']}",
             devin_session_id=devin_result["session_id"],
         ))
+        reminder_subject = "Reminder: Missing Documents - Green Grove Tax Services"
         await gmail.send_email(
             to=client.email,
-            subject="Reminder: Missing Documents - Green Grove Tax Services",
+            subject=reminder_subject,
             body=f"Hi {client.name},\n\nWe still need: {', '.join(missing)}.\n\n"
             f"Upload at: {portal_url}\n\nBest regards,\nGreen Grove Tax Services",
         )
+        db.add(Activity(
+            client_id=client.id,
+            action="Document reminder email sent",
+            details=f"To: {client.email} | Subject: {reminder_subject}",
+        ))
         await db.commit()
         return {"status": "follow_up_sent", "missing_documents": missing,
                 "devin_session_id": devin_result["session_id"]}
