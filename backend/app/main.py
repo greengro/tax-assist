@@ -54,6 +54,8 @@ async def integration_status():
         "calendly": bool(os.getenv("CALENDLY_API_KEY", "")),
         "google_drive": bool(os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY", "") and os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")),
         "google_sheets": bool(os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY", "") and os.getenv("GOOGLE_SHEET_ID", "")),
+        "google_docs": bool(os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY", "")),
+        "gmail": bool(os.getenv("GMAIL_ADDRESS", "") and os.getenv("GMAIL_APP_PASSWORD", "")),
         "fireflies": bool(os.getenv("FIREFLIES_API_KEY", "")),
         "devin": bool(os.getenv("DEVIN_API_KEY", "") and os.getenv("DEVIN_ORG_ID", "")),
     }
