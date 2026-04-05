@@ -35,13 +35,18 @@ async def create_client_folder(client_name: str) -> dict:
         slug = client_name.lower().replace(" ", "-")
         return {"name": client_name, "url": f"https://drive.google.com/drive/folders/mock-{slug}"}
 
-    file_metadata = {
-        "name": client_name,
-        "mimeType": "application/vnd.google-apps.folder",
-        "parents": [parent_folder_id],
-    }
-    folder = service.files().create(body=file_metadata, fields="id, webViewLink").execute()
-    folder_url = folder.get("webViewLink", f"https://drive.google.com/drive/folders/{folder['id']}")
+    try:
+        file_metadata = {
+            "name": client_name,
+            "mimeType": "application/vnd.google-apps.folder",
+            "parents": [parent_folder_id],
+        }
+        folder = service.files().create(body=file_metadata, fields="id, webViewLink").execute()
+        folder_url = folder.get("webViewLink", f"https://drive.google.com/drive/folders/{folder['id']}")
 
-    logger.info("[GOOGLE DRIVE] Created folder '%s' → %s", client_name, folder_url)
-    return {"name": client_name, "url": folder_url}
+        logger.info("[GOOGLE DRIVE] Created folder '%s' → %s", client_name, folder_url)
+        return {"name": client_name, "url": folder_url}
+    except Exception:
+        logger.exception("[GOOGLE DRIVE] Failed to create folder for '%s'", client_name)
+        slug = client_name.lower().replace(" ", "-")
+        return {"name": client_name, "url": f"https://drive.google.com/drive/folders/mock-{slug}"}
