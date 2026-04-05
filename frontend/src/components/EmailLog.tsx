@@ -2,17 +2,15 @@ import { useEffect, useState } from "react";
 import { getEmailLog, getSignatureLog } from "../lib/api";
 
 interface EmailEntry {
-  to: string;
-  subject: string;
-  body: string;
-  sent_at: string;
+  action: string;
+  details: string;
+  created_at: string;
 }
 
 interface SignatureEntry {
-  client_name: string;
-  client_email: string;
-  document_name: string;
-  sent_at: string;
+  action: string;
+  details: string;
+  created_at: string;
 }
 
 export default function EmailLog() {
@@ -62,9 +60,9 @@ export default function EmailLog() {
               className="text-sm p-3 rounded-lg"
               style={{ background: "rgba(var(--mist), 0.25)" }}
             >
-              <p className="font-semibold" style={{ color: "rgb(var(--ink))" }}>{e.subject}</p>
-              <p className="text-xs mt-0.5" style={{ color: "rgba(var(--ink), 0.4)" }}>To: {e.to}</p>
-              <p className="text-xs mt-1 line-clamp-2" style={{ color: "rgba(var(--ink), 0.35)" }}>{e.body}</p>
+              <p className="font-semibold" style={{ color: "rgb(var(--ink))" }}>{e.action}</p>
+              <p className="text-xs mt-1 line-clamp-2" style={{ color: "rgba(var(--ink), 0.35)" }}>{e.details}</p>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(var(--ink), 0.4)" }}>{new Date(e.created_at).toLocaleString()}</p>
             </div>
           ))}
         {tab === "signatures" &&
@@ -74,9 +72,10 @@ export default function EmailLog() {
               className="text-sm p-3 rounded-lg"
               style={{ background: "rgba(var(--mist), 0.25)" }}
             >
-              <p className="font-semibold" style={{ color: "rgb(var(--ink))" }}>{s.document_name}</p>
+              <p className="font-semibold" style={{ color: "rgb(var(--ink))" }}>{s.action}</p>
+              <p className="text-xs mt-1 line-clamp-2" style={{ color: "rgba(var(--ink), 0.35)" }}>{s.details}</p>
               <p className="text-xs mt-0.5" style={{ color: "rgba(var(--ink), 0.4)" }}>
-                {s.client_name} ({s.client_email})
+                {new Date(s.created_at).toLocaleString()}
               </p>
             </div>
           ))}
