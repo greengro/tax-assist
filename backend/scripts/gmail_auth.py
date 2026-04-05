@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-"""One-time OAuth2 helper to obtain a Gmail API refresh token.
+"""One-time OAuth2 helper to obtain a refresh token for Gmail + Google Docs.
 
 Usage:
-  1. Enable Gmail API in your GCP project
+  1. Enable Gmail API and Google Docs API in your GCP project
   2. Create OAuth2 credentials (Desktop app) at
      https://console.cloud.google.com/apis/credentials
   3. Run:  python scripts/gmail_auth.py
   4. Follow the prompts — paste client ID, client secret, then open the URL
      in your browser, approve, and paste the authorization code back.
   5. The script prints the refresh token to store as GMAIL_REFRESH_TOKEN.
+
+The resulting refresh token grants access to:
+  - Gmail (send emails)
+  - Google Docs (create/edit documents)
+  - Google Drive (manage files in shared folders)
 """
 
 import urllib.parse
@@ -17,7 +22,11 @@ import httpx
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-SCOPES = "https://www.googleapis.com/auth/gmail.send"
+SCOPES = " ".join([
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/drive.file",
+])
 REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
 
 
@@ -51,6 +60,7 @@ def main() -> None:
     print("\n--- Success! ---")
     print(f"Refresh Token: {data['refresh_token']}")
     print("\nStore this as GMAIL_REFRESH_TOKEN in your environment.")
+    print("This token covers Gmail, Google Docs, and Google Drive scopes.")
     print(f"Access Token (temporary): {data.get('access_token', 'N/A')}")
 
 

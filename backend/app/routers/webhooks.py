@@ -102,7 +102,10 @@ async def handle_calendly_webhook(payload: dict, db: AsyncSession = Depends(get_
     await db.refresh(client)
 
     # Sync to Google Sheets CRM
-    await google_sheets.upsert_client(client)
+    try:
+        await google_sheets.upsert_client(client)
+    except Exception:
+        logger.warning("Failed to sync client %s to Google Sheets", client.id, exc_info=True)
 
     return {
         "status": "processed",
@@ -171,7 +174,10 @@ async def handle_meeting_notes(
     await db.refresh(client)
 
     # Sync to Google Sheets CRM
-    await google_sheets.upsert_client(client)
+    try:
+        await google_sheets.upsert_client(client)
+    except Exception:
+        logger.warning("Failed to sync client %s to Google Sheets", client.id, exc_info=True)
 
     return {
         "status": "processed",
@@ -248,7 +254,10 @@ async def trigger_engagement_letter(
     await db.refresh(client)
 
     # Sync to Google Sheets CRM
-    await google_sheets.upsert_client(client)
+    try:
+        await google_sheets.upsert_client(client)
+    except Exception:
+        logger.warning("Failed to sync client %s to Google Sheets", client.id, exc_info=True)
 
     return {
         "status": "processed",

@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Activity, Client, PipelineStage
 from app.schemas import ActivityFeedItem, ClientOut, PipelineSummary
-from app.services import mock_services
 
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 
@@ -60,8 +59,8 @@ async def get_pipeline_stats(db: AsyncSession = Depends(get_db)):
     return {
         "total_clients": total,
         "stage_counts": stage_counts,
-        "emails_sent": len(mock_services.get_sent_emails()),
-        "signature_requests": len(mock_services.get_signature_requests()),
+        "emails_sent": await _count_activities(db, "email"),
+        "signature_requests": await _count_activities(db, "engagement letter"),
     }
 
 
@@ -90,11 +89,51 @@ async def get_activity_feed(limit: int = 50, db: AsyncSession = Depends(get_db))
     return feed
 
 
+async def _count_activities(db: AsyncSession, keyword: str) -> int:
+    """Count activities whose action contains the keyword (case-insensitive)."""
+    result = await db.execute(
+        select(func.count(Activity.id)).where(
+            Activity.action.ilike(f"%{keyword}%"),
+        )
+    )
+    return result.scalar() or 0
+
+
 @router.get("/emails")
-async def get_email_log():
-    return mock_services.get_sent_emails()
+async def get_email_log(db: AsyncSession = Depends(get_db)):
+    """Return email-related activities from the activity log."""
+    result = await db.execute(
+        select(Activity)
+        .where(Activity.action.ilike("%email%"))
+        .order_by(Activity.created_at.desc())
+        .limit(50)
+    )
+    activities = result.scalars().all()
+    return [
+        {
+            "action": a.action,
+            "details": a.details,
+            "created_at": a.created_at.isoformat(),
+        }
+        for a in activities
+    ]
 
 
 @router.get("/signatures")
-async def get_signature_log():
-    return mock_services.get_signature_requests()
+async def get_signature_log(db: AsyncSession = Depends(get_db)):
+    """Return engagement letter / signature activities from the activity log."""
+    result = await db.execute(
+        select(Activity)
+        .where(Activity.action.ilike("%engagement letter%"))
+        .order_by(Activity.created_at.desc())
+        .limit(50)
+    )
+    activities = result.scalars().all()
+    return [
+        {
+            "action": a.action,
+            "details": a.details,
+            "created_at": a.created_at.isoformat(),
+        }
+        for a in activities
+    ]

@@ -24,8 +24,8 @@ async def get_recent_transcripts(limit: int = 5) -> list[dict]:
         return []
 
     query = """
-    query {
-        transcripts(limit: %d) {
+    query GetTranscripts($limit: Int!) {
+        transcripts(limit: $limit) {
             id
             title
             date
@@ -44,13 +44,13 @@ async def get_recent_transcripts(limit: int = 5) -> list[dict]:
             }
         }
     }
-    """ % limit
+    """
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             GRAPHQL_URL,
             headers=_headers(),
-            json={"query": query},
+            json={"query": query, "variables": {"limit": limit}},
             timeout=30.0,
         )
         resp.raise_for_status()
@@ -64,8 +64,8 @@ async def get_transcript_by_id(transcript_id: str) -> dict | None:
         return None
 
     query = """
-    query {
-        transcript(id: "%s") {
+    query GetTranscript($id: String!) {
+        transcript(id: $id) {
             id
             title
             date
@@ -84,13 +84,13 @@ async def get_transcript_by_id(transcript_id: str) -> dict | None:
             }
         }
     }
-    """ % transcript_id
+    """
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             GRAPHQL_URL,
             headers=_headers(),
-            json={"query": query},
+            json={"query": query, "variables": {"id": transcript_id}},
             timeout=30.0,
         )
         resp.raise_for_status()
