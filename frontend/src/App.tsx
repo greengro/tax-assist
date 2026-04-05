@@ -72,7 +72,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Header
         stats={stats}
         onAddClient={() => setShowAddClient(true)}
@@ -82,11 +82,14 @@ function App() {
         }}
       />
 
-      <main className="max-w-screen-2xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-screen-2xl mx-auto px-6 py-8 space-y-8">
         {/* Pipeline Board */}
         <section>
-          <h2 className="text-sm font-bold uppercase tracking-wide text-gray-500 mb-3">
-            Client Pipeline
+          <h2
+            className="font-display text-lg mb-4 fade-up"
+            style={{ animationDelay: "250ms", color: "rgb(var(--ink))" }}
+          >
+            Pipeline
           </h2>
           <PipelineBoard
             stages={stages}
@@ -98,7 +101,7 @@ function App() {
           />
         </section>
 
-        {/* Activity + Emails */}
+        {/* Activity + Communications */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ActivityFeed activities={activities} />
           <EmailLog />

@@ -87,7 +87,7 @@ export interface PipelineStats {
 export const STAGE_LABELS: Record<PipelineStage, string> = {
   lead: "Lead",
   intro_booked: "Intro Booked",
-  intro_completed: "Intro Done",
+  intro_completed: "Intro Complete",
   documents_requested: "Docs Requested",
   documents_received: "Docs Received",
   engagement_letter_sent: "Letter Sent",
@@ -100,34 +100,18 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
   completed: "Completed",
 };
 
-export const STAGE_COLORS: Record<PipelineStage, string> = {
-  lead: "bg-gray-200 text-gray-700",
-  intro_booked: "bg-cyan-100 text-cyan-800",
-  intro_completed: "bg-blue-100 text-blue-800",
-  documents_requested: "bg-yellow-100 text-yellow-800",
-  documents_received: "bg-orange-100 text-orange-800",
-  engagement_letter_sent: "bg-purple-100 text-purple-800",
-  engagement_signed: "bg-green-100 text-green-800",
-  in_progress: "bg-teal-100 text-teal-800",
-  review: "bg-pink-100 text-pink-800",
-  return_completed: "bg-indigo-100 text-indigo-800",
-  return_signed: "bg-emerald-100 text-emerald-800",
-  filed: "bg-lime-100 text-lime-800",
-  completed: "bg-green-200 text-green-900",
-};
-
-export const STAGE_BORDER_COLORS: Record<PipelineStage, string> = {
-  lead: "border-l-gray-400",
-  intro_booked: "border-l-cyan-500",
-  intro_completed: "border-l-blue-500",
-  documents_requested: "border-l-yellow-500",
-  documents_received: "border-l-orange-500",
-  engagement_letter_sent: "border-l-purple-500",
-  engagement_signed: "border-l-green-500",
-  in_progress: "border-l-teal-500",
-  review: "border-l-pink-500",
-  return_completed: "border-l-indigo-500",
-  return_signed: "border-l-emerald-500",
-  filed: "border-l-lime-500",
-  completed: "border-l-green-700",
+export const STAGE_DOT_COLORS: Record<PipelineStage, string> = {
+  lead: "bg-gray-400",
+  intro_booked: "bg-sky-400",
+  intro_completed: "bg-blue-500",
+  documents_requested: "bg-amber-500",
+  documents_received: "bg-orange-500",
+  engagement_letter_sent: "bg-violet-500",
+  engagement_signed: "bg-emerald-500",
+  in_progress: "bg-teal-500",
+  review: "bg-pink-500",
+  return_completed: "bg-indigo-500",
+  return_signed: "bg-cyan-600",
+  filed: "bg-lime-600",
+  completed: "bg-green-700",
 };
