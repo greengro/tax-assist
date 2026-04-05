@@ -149,6 +149,9 @@
     background: rgba(var(--grove), 0.06);
     border-color: rgb(var(--grove));
   }
+  .btn-ghost:disabled {
+    opacity: 0.5;
+  }
 
   /* Scrollbar */
   .custom-scroll::-webkit-scrollbar {
