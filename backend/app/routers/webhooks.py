@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models import Activity, Client, ClientType, DocumentChecklist, PipelineStage
 from app.schemas import MeetingNotesPayload
 from app.services import devin_api, mock_services
+from app.services import google_drive, google_sheets
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -70,9 +71,9 @@ async def handle_calendly_webhook(payload: dict, db: AsyncSession = Depends(get_
 
     await db.flush()
 
-    # Create folder
-    folder = await mock_services.create_client_folder(name)
-    client.folder_url = folder.url
+    # Create folder (real Google Drive or mock fallback)
+    folder = await google_drive.create_client_folder(name)
+    client.folder_url = folder["url"]
 
     db.add(Activity(client_id=client.id, action="Calendly booking received", details=detail))
 
@@ -100,12 +101,15 @@ async def handle_calendly_webhook(payload: dict, db: AsyncSession = Depends(get_
     await db.commit()
     await db.refresh(client)
 
+    # Sync to Google Sheets CRM
+    await google_sheets.upsert_client(client)
+
     return {
         "status": "processed",
         "client_id": client.id,
         "stage": client.stage.value,
         "devin_session_id": devin_result["session_id"],
-        "folder_url": folder.url,
+        "folder_url": folder["url"],
     }
 
 
@@ -166,6 +170,9 @@ async def handle_meeting_notes(
     await db.commit()
     await db.refresh(client)
 
+    # Sync to Google Sheets CRM
+    await google_sheets.upsert_client(client)
+
     return {
         "status": "processed",
         "client_id": client.id,
@@ -207,6 +214,9 @@ async def trigger_engagement_letter(
 
     await db.commit()
     await db.refresh(client)
+
+    # Sync to Google Sheets CRM
+    await google_sheets.upsert_client(client)
 
     return {
         "status": "processed",
