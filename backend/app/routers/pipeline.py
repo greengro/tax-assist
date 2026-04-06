@@ -124,7 +124,7 @@ async def get_signature_log(db: AsyncSession = Depends(get_db)):
     """Return engagement letter / signature activities from the activity log."""
     result = await db.execute(
         select(Activity)
-        .where(Activity.action.ilike("%engagement letter%"))
+        .where(Activity.action.ilike("%SOW created%"))
         .order_by(Activity.created_at.desc())
         .limit(50)
     )
