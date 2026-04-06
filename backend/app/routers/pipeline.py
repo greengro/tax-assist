@@ -60,7 +60,7 @@ async def get_pipeline_stats(db: AsyncSession = Depends(get_db)):
         "total_clients": total,
         "stage_counts": stage_counts,
         "emails_sent": await _count_activities(db, "email"),
-        "signature_requests": await _count_activities(db, "engagement letter"),
+        "signature_requests": await _count_activities(db, "SOW created"),
     }
 
 
