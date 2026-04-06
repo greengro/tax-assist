@@ -5,10 +5,12 @@ Usage:
   1. Enable Gmail API and Google Docs API in your GCP project
   2. Create OAuth2 credentials (Desktop app) at
      https://console.cloud.google.com/apis/credentials
-  3. Run:  python scripts/gmail_auth.py
-  4. Follow the prompts — paste client ID, client secret, then open the URL
-     in your browser, approve, and paste the authorization code back.
-  5. The script prints the refresh token to store as GMAIL_REFRESH_TOKEN.
+  3. Set env vars GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET (or paste when prompted)
+  4. Run:  python scripts/gmail_auth.py
+  5. Open the URL in your browser, approve, and copy the code= value from
+     the redirect URL (the page won't load — that's expected).
+  6. Paste the authorization code when prompted.
+  7. The script prints the refresh token to store as GMAIL_REFRESH_TOKEN.
 
 The resulting refresh token grants access to:
   - Gmail (send emails)
@@ -16,6 +18,7 @@ The resulting refresh token grants access to:
   - Google Drive (manage files in shared folders)
 """
 
+import os
 import urllib.parse
 
 import httpx
@@ -27,12 +30,13 @@ SCOPES = " ".join([
     "https://www.googleapis.com/auth/documents",
     "https://www.googleapis.com/auth/drive.file",
 ])
-REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+REDIRECT_PORT = 8085
+REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}"
 
 
 def main() -> None:
-    client_id = input("Paste your OAuth2 Client ID: ").strip()
-    client_secret = input("Paste your OAuth2 Client Secret: ").strip()
+    client_id = os.getenv("GMAIL_CLIENT_ID", "") or input("Paste your OAuth2 Client ID: ").strip()
+    client_secret = os.getenv("GMAIL_CLIENT_SECRET", "") or input("Paste your OAuth2 Client Secret: ").strip()
 
     params = urllib.parse.urlencode({
         "client_id": client_id,
@@ -45,6 +49,8 @@ def main() -> None:
     auth_url = f"{AUTH_URL}?{params}"
 
     print(f"\nOpen this URL in your browser:\n\n{auth_url}\n")
+    print("After approving, your browser will redirect to a page that won't load.")
+    print("Copy the 'code=' value from the URL bar and paste it below.\n")
     code = input("Paste the authorization code here: ").strip()
 
     resp = httpx.post(TOKEN_URL, data={
