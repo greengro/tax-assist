@@ -38,7 +38,7 @@ def _is_configured() -> bool:
 
 def _format_fee(fee_estimate: str | float | None) -> str:
     """Format fee_estimate for display, handling str, float, or None."""
-    if not fee_estimate:
+    if fee_estimate is None or fee_estimate == "":
         return "To be determined"
     if isinstance(fee_estimate, (int, float)):
         return f"${fee_estimate:,.2f}"
