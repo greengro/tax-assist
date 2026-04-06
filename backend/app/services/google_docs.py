@@ -237,6 +237,67 @@ async def create_statement_of_work(
         }
 
 
+async def create_invoice(
+    client_name: str,
+    client_email: str,
+    services: str,
+    fee_estimate: str | float | None = None,
+    folder_id: str | None = None,
+) -> dict:
+    """Create an Invoice as a Google Doc in the client's folder."""
+    if not _is_configured():
+        mock_id = f"mock-inv-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        logger.info("[MOCK DOCS] Invoice for %s", client_name)
+        return {
+            "doc_id": mock_id,
+            "doc_url": f"https://docs.google.com/document/d/{mock_id}/edit",
+            "title": f"Invoice - {client_name}",
+            "mock": True,
+        }
+
+    try:
+        access_token = await _get_access_token()
+        headers = {"Authorization": f"Bearer {access_token}"}
+
+        today = datetime.now().strftime("%B %d, %Y")
+        title = f"Invoice - {client_name}"
+        fee_line = _format_fee(fee_estimate)
+        inv_number = f"INV-{datetime.now().strftime('%Y%m%d%H%M')}"
+
+        doc = await _create_doc(title, headers)
+        doc_id = doc["documentId"]
+
+        content = _build_invoice_content(
+            client_name, client_email, services, fee_line, today, inv_number,
+        )
+        await _batch_update_doc(doc_id, content, headers)
+
+        if folder_id:
+            try:
+                await _move_doc_to_folder(doc_id, folder_id, headers)
+            except Exception:
+                logger.warning(
+                    "Could not move invoice %s into folder %s", doc_id, folder_id,
+                )
+
+        doc_url = f"https://docs.google.com/document/d/{doc_id}/edit"
+        logger.info("[GOOGLE DOCS] Created invoice: %s", doc_url)
+
+        return {
+            "doc_id": doc_id, "doc_url": doc_url,
+            "title": title, "mock": False,
+        }
+    except Exception:
+        logger.exception("Failed to create invoice for %s", client_name)
+        mock_id = f"mock-inv-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        return {
+            "doc_id": mock_id,
+            "doc_url": f"https://docs.google.com/document/d/{mock_id}/edit",
+            "title": f"Invoice - {client_name}",
+            "mock": True,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Document content builders (Google Docs batchUpdate requests)
 # ---------------------------------------------------------------------------
@@ -325,6 +386,48 @@ def _build_sow_content(
     requests = [{"insertText": {"location": {"index": 1}, "text": full_text}}]
 
     title_end = len("STATEMENT OF WORK\n") + 1
+    requests.append({
+        "updateTextStyle": {
+            "range": {"startIndex": 1, "endIndex": title_end},
+            "textStyle": {"bold": True, "fontSize": {"magnitude": 18, "unit": "PT"}},
+            "fields": "bold,fontSize",
+        }
+    })
+
+    return requests
+
+
+def _build_invoice_content(
+    client_name: str, client_email: str, services: str,
+    fee_line: str, date: str, inv_number: str,
+) -> list[dict]:
+    """Build Google Docs API requests for the Invoice."""
+    lines = [
+        "INVOICE\n",
+        "Green Grove Tax Services\n",
+        "123 Green Grove Lane, Suite 200\n",
+        "Springfield, IL 62701\n\n",
+        f"Invoice Number: {inv_number}\n",
+        f"Date: {date}\n",
+        "Due Date: Upon completion of services\n\n",
+        "Bill To:\n",
+        f"  {client_name}\n",
+        f"  {client_email}\n\n",
+        "Description                                    Amount\n",
+        "-------------------------------------------------------\n",
+        f"{services:<47}{fee_line}\n\n",
+        f"{'Total:':<47}{fee_line}\n\n",
+        "Payment Terms:\n",
+        "Payment is due upon completion of services. Please make checks\n",
+        "payable to Green Grove Tax Services or pay via bank transfer.\n\n",
+        "Thank you for your business!\n",
+        "Green Grove Tax Services\n",
+    ]
+
+    full_text = "".join(lines)
+    requests = [{"insertText": {"location": {"index": 1}, "text": full_text}}]
+
+    title_end = len("INVOICE\n") + 1
     requests.append({
         "updateTextStyle": {
             "range": {"startIndex": 1, "endIndex": title_end},

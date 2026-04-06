@@ -13,6 +13,7 @@ from app.models import Activity, Client, ClientType, DocumentChecklist, Pipeline
 from app.schemas import MeetingNotesPayload
 from app.services import devin_api
 from app.services import gmail, google_docs, google_drive, google_sheets
+from app.services import mock_services
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -224,7 +225,7 @@ async def trigger_engagement_letter(
     if client.folder_url and "folders/" in client.folder_url:
         folder_id = client.folder_url.rsplit("folders/", 1)[-1]
 
-    # Create real Google Docs (engagement letter + SOW)
+    # 1-3. Create real Google Docs (engagement letter + SOW + invoice)
     letter_result = await google_docs.create_engagement_letter(
         client_name=client.name, client_email=client.email,
         services=services, fee_estimate=client.fee_estimate,
@@ -235,18 +236,63 @@ async def trigger_engagement_letter(
         services=services, fee_estimate=client.fee_estimate,
         folder_id=folder_id,
     )
+    invoice_result = await google_docs.create_invoice(
+        client_name=client.name, client_email=client.email,
+        services=services, fee_estimate=client.fee_estimate,
+        folder_id=folder_id,
+    )
 
-    # Send email with links to the documents
-    eng_subject = "Engagement Letter & Statement of Work - Green Grove Tax Services"
+    db.add(Activity(
+        client_id=client.id,
+        action="Engagement letter & SOW & Invoice created in Google Docs",
+        details=(
+            f"Services: {services}. "
+            f"Letter: {letter_result['doc_url']}. "
+            f"SOW: {sow_result['doc_url']}. "
+            f"Invoice: {invoice_result['doc_url']}. "
+            f"Devin session: {devin_result['session_id']}"
+        ),
+        devin_session_id=devin_result["session_id"],
+    ))
+
+    # 4. Documents are uploaded to client's Drive folder via folder_id above
+
+    # 5. Send Engagement Letter and SOW via DocuSign for e-signature
+    letter_sig = await mock_services.send_for_signature(
+        client_name=client.name, client_email=client.email,
+        document_name="Engagement Letter",
+    )
+    sow_sig = await mock_services.send_for_signature(
+        client_name=client.name, client_email=client.email,
+        document_name="Statement of Work",
+    )
+    db.add(Activity(
+        client_id=client.id,
+        action="Engagement letter & SOW sent via DocuSign",
+        details=(
+            f"To: {client.email} | "
+            f"Letter envelope: {letter_sig.envelope_id} | "
+            f"SOW envelope: {sow_sig.envelope_id}"
+        ),
+    ))
+
+    # 6. Send email notification about pending signature
+    eng_subject = "Action Required: Please Sign Your Engagement Documents - Green Grove Tax Services"
     await gmail.send_email(
         to=client.email,
         subject=eng_subject,
         body=f"Hi {client.name},\n\n"
-        f"Please review and sign the following documents:\n\n"
-        f"1. Engagement Letter: {letter_result['doc_url']}\n"
-        f"2. Statement of Work: {sow_result['doc_url']}\n\n"
+        f"Your engagement documents are ready for review and signature.\n\n"
+        f"We have sent the following documents via DocuSign:\n"
+        f"1. Engagement Letter (Envelope: {letter_sig.envelope_id})\n"
+        f"2. Statement of Work (Envelope: {sow_sig.envelope_id})\n\n"
+        f"You can also view the documents directly:\n"
+        f"- Engagement Letter: {letter_result['doc_url']}\n"
+        f"- Statement of Work: {sow_result['doc_url']}\n"
+        f"- Invoice: {invoice_result['doc_url']}\n\n"
         f"Services: {services}\n\n"
-        f"Please reply to this email once you have reviewed and agree to the terms.\n\n"
+        f"Please check your email for the DocuSign signing request and "
+        f"complete your signature at your earliest convenience.\n\n"
         f"Best regards,\nGreen Grove Tax Services",
     )
     db.add(Activity(
@@ -255,18 +301,7 @@ async def trigger_engagement_letter(
         details=f"To: {client.email} | Subject: {eng_subject}",
     ))
 
-    doc_details = (
-        f"Services: {services}. "
-        f"Letter: {letter_result['doc_url']}. "
-        f"SOW: {sow_result['doc_url']}. "
-        f"Devin session: {devin_result['session_id']}"
-    )
-    db.add(Activity(
-        client_id=client.id,
-        action="Engagement letter & SOW created in Google Docs",
-        details=doc_details,
-        devin_session_id=devin_result["session_id"],
-    ))
+    # 7. CRM stage already set to ENGAGEMENT_LETTER_SENT above
 
     await db.commit()
     await db.refresh(client)
@@ -282,6 +317,15 @@ async def trigger_engagement_letter(
         "client_id": client.id,
         "stage": client.stage.value,
         "devin_session_id": devin_result["session_id"],
+        "documents": {
+            "engagement_letter": letter_result["doc_url"],
+            "statement_of_work": sow_result["doc_url"],
+            "invoice": invoice_result["doc_url"],
+        },
+        "docusign": {
+            "engagement_letter_envelope": letter_sig.envelope_id,
+            "sow_envelope": sow_sig.envelope_id,
+        },
     }
 
 
