@@ -1,5 +1,6 @@
 """Google Sheets CRM integration — sync client data to a shared spreadsheet."""
 
+import asyncio
 import json
 import logging
 import os
@@ -50,21 +51,25 @@ async def ensure_headers() -> bool:
         logger.warning("[GOOGLE SHEETS] Credentials or sheet ID not set — skipping")
         return False
 
-    result = service.spreadsheets().values().get(
-        spreadsheetId=spreadsheet_id, range="Sheet1!A1:R1"
-    ).execute()
-    existing = result.get("values", [])
-    if existing and existing[0]:
-        return False
+    def _sync_ensure():
+        result = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id, range="Sheet1!A1:R1"
+        ).execute()
+        existing = result.get("values", [])
+        if existing and existing[0]:
+            return False
+        service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range="Sheet1!A1:R1",
+            valueInputOption="RAW",
+            body={"values": [HEADERS]},
+        ).execute()
+        return True
 
-    service.spreadsheets().values().update(
-        spreadsheetId=spreadsheet_id,
-        range="Sheet1!A1:R1",
-        valueInputOption="RAW",
-        body={"values": [HEADERS]},
-    ).execute()
-    logger.info("[GOOGLE SHEETS] Header row written")
-    return True
+    written = await asyncio.to_thread(_sync_ensure)
+    if written:
+        logger.info("[GOOGLE SHEETS] Header row written")
+    return written
 
 
 async def upsert_client(client) -> bool:
@@ -99,39 +104,46 @@ async def upsert_client(client) -> bool:
         _fmt(client.updated_at),
     ]
 
-    # Find existing row by ID
-    result = service.spreadsheets().values().get(
-        spreadsheetId=spreadsheet_id, range="Sheet1!A:A"
-    ).execute()
-    ids = result.get("values", [])
-
-    row_index = None
+    client_name = client.name
     client_id_str = str(client.id)
-    for i, id_row in enumerate(ids):
-        if i == 0:
-            continue  # skip header
-        if id_row and id_row[0] == client_id_str:
-            row_index = i + 1  # 1-indexed
-            break
 
-    if row_index:
-        # Update existing row
-        service.spreadsheets().values().update(
-            spreadsheetId=spreadsheet_id,
-            range=f"Sheet1!A{row_index}:R{row_index}",
-            valueInputOption="RAW",
-            body={"values": [row]},
+    def _sync_upsert():
+        # Find existing row by ID
+        result = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id, range="Sheet1!A:A"
         ).execute()
-        logger.info("[GOOGLE SHEETS] Updated client %s at row %d", client.name, row_index)
+        ids = result.get("values", [])
+
+        row_index = None
+        for i, id_row in enumerate(ids):
+            if i == 0:
+                continue  # skip header
+            if id_row and id_row[0] == client_id_str:
+                row_index = i + 1  # 1-indexed
+                break
+
+        if row_index:
+            service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range=f"Sheet1!A{row_index}:R{row_index}",
+                valueInputOption="RAW",
+                body={"values": [row]},
+            ).execute()
+            return ("updated", row_index)
+        else:
+            service.spreadsheets().values().append(
+                spreadsheetId=spreadsheet_id,
+                range="Sheet1!A:R",
+                valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS",
+                body={"values": [row]},
+            ).execute()
+            return ("added", None)
+
+    action, idx = await asyncio.to_thread(_sync_upsert)
+    if action == "updated":
+        logger.info("[GOOGLE SHEETS] Updated client %s at row %d", client_name, idx)
     else:
-        # Append new row
-        service.spreadsheets().values().append(
-            spreadsheetId=spreadsheet_id,
-            range="Sheet1!A:R",
-            valueInputOption="RAW",
-            insertDataOption="INSERT_ROWS",
-            body={"values": [row]},
-        ).execute()
-        logger.info("[GOOGLE SHEETS] Added client %s to CRM", client.name)
+        logger.info("[GOOGLE SHEETS] Added client %s to CRM", client_name)
 
     return True

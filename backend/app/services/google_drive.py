@@ -1,5 +1,6 @@
 """Google Drive integration — create client folders in a shared parent folder."""
 
+import asyncio
 import json
 import logging
 import os
@@ -41,7 +42,11 @@ async def create_client_folder(client_name: str) -> dict:
             "mimeType": "application/vnd.google-apps.folder",
             "parents": [parent_folder_id],
         }
-        folder = service.files().create(body=file_metadata, fields="id, webViewLink").execute()
+
+        def _sync_create():
+            return service.files().create(body=file_metadata, fields="id, webViewLink").execute()
+
+        folder = await asyncio.to_thread(_sync_create)
         folder_url = folder.get("webViewLink", f"https://drive.google.com/drive/folders/{folder['id']}")
 
         logger.info("[GOOGLE DRIVE] Created folder '%s' → %s", client_name, folder_url)
