@@ -27,6 +27,7 @@ function App() {
   const [showWebhook, setShowWebhook] = useState(false);
   const [showAddClient, setShowAddClient] = useState(false);
   const [prefillEmail, setPrefillEmail] = useState<string | undefined>();
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -38,6 +39,7 @@ function App() {
       setStages(pipelineData);
       setStats(statsData);
       setActivities(activityData);
+      setRefreshKey((k) => k + 1);
     } catch (err) {
       console.error("Failed to fetch data:", err);
     }
@@ -104,7 +106,7 @@ function App() {
         {/* Activity + Communications */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ActivityFeed activities={activities} />
-          <EmailLog />
+          <EmailLog refreshKey={refreshKey} />
         </div>
       </main>
 

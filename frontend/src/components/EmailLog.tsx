@@ -13,7 +13,7 @@ interface SignatureEntry {
   created_at: string;
 }
 
-export default function EmailLog() {
+export default function EmailLog({ refreshKey }: { refreshKey?: number }) {
   const [emails, setEmails] = useState<EmailEntry[]>([]);
   const [signatures, setSignatures] = useState<SignatureEntry[]>([]);
   const [tab, setTab] = useState<"emails" | "signatures">("emails");
@@ -21,7 +21,7 @@ export default function EmailLog() {
   useEffect(() => {
     getEmailLog().then(setEmails).catch(console.error);
     getSignatureLog().then(setSignatures).catch(console.error);
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div className="glass rounded-xl p-5 fade-up" style={{ animationDelay: "600ms" }}>
