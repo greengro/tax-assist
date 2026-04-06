@@ -222,7 +222,7 @@ async def trigger_engagement_letter(
     # Extract folder ID from folder_url for placing docs in client folder
     folder_id = None
     if client.folder_url and "folders/" in client.folder_url:
-        folder_id = client.folder_url.rsplit("folders/", 1)[-1]
+        folder_id = client.folder_url.rsplit("folders/", 1)[-1].split("?")[0].split("#")[0]
 
     # Create real Google Docs (engagement letter + SOW)
     letter_result = await google_docs.create_engagement_letter(
