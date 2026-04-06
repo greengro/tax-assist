@@ -36,6 +36,16 @@ def _is_configured() -> bool:
     )
 
 
+def _format_fee(fee_estimate: str | float | None) -> str:
+    """Format fee_estimate for display, handling str, float, or None."""
+    if not fee_estimate:
+        return "To be determined"
+    if isinstance(fee_estimate, (int, float)):
+        return f"${fee_estimate:,.2f}"
+    # Already a string — prefix with $ if not already present
+    return fee_estimate if fee_estimate.startswith("$") else f"${fee_estimate}"
+
+
 async def _get_access_token() -> str:
     """Exchange the refresh token for a short-lived access token."""
     async with httpx.AsyncClient() as client:
@@ -105,7 +115,7 @@ async def create_engagement_letter(
     client_name: str,
     client_email: str,
     services: str,
-    fee_estimate: float | None = None,
+    fee_estimate: str | float | None = None,
     folder_id: str | None = None,
 ) -> dict:
     """Create an Engagement Letter as a Google Doc in the client's folder.
@@ -128,7 +138,7 @@ async def create_engagement_letter(
 
         today = datetime.now().strftime("%B %d, %Y")
         title = f"Engagement Letter - {client_name}"
-        fee_line = f"${fee_estimate:,.2f}" if fee_estimate else "To be determined"
+        fee_line = _format_fee(fee_estimate)
 
         # 1. Create blank doc
         doc = await _create_doc(title, headers)
@@ -173,7 +183,7 @@ async def create_statement_of_work(
     client_name: str,
     client_email: str,
     services: str,
-    fee_estimate: float | None = None,
+    fee_estimate: str | float | None = None,
     folder_id: str | None = None,
 ) -> dict:
     """Create a Statement of Work as a Google Doc in the client's folder."""
@@ -193,7 +203,7 @@ async def create_statement_of_work(
 
         today = datetime.now().strftime("%B %d, %Y")
         title = f"Statement of Work - {client_name}"
-        fee_line = f"${fee_estimate:,.2f}" if fee_estimate else "To be determined"
+        fee_line = _format_fee(fee_estimate)
 
         doc = await _create_doc(title, headers)
         doc_id = doc["documentId"]
