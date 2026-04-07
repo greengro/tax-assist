@@ -1,22 +1,19 @@
-import { Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getEmailLog, getSignatureLog } from "../lib/api";
 
 interface EmailEntry {
-  to: string;
-  subject: string;
-  body: string;
-  sent_at: string;
+  action: string;
+  details: string;
+  created_at: string;
 }
 
 interface SignatureEntry {
-  client_name: string;
-  client_email: string;
-  document_name: string;
-  sent_at: string;
+  action: string;
+  details: string;
+  created_at: string;
 }
 
-export default function EmailLog() {
+export default function EmailLog({ refreshKey }: { refreshKey?: number }) {
   const [emails, setEmails] = useState<EmailEntry[]>([]);
   const [signatures, setSignatures] = useState<SignatureEntry[]>([]);
   const [tab, setTab] = useState<"emails" | "signatures">("emails");
@@ -24,59 +21,69 @@ export default function EmailLog() {
   useEffect(() => {
     getEmailLog().then(setEmails).catch(console.error);
     getSignatureLog().then(setSignatures).catch(console.error);
-  }, []);
+  }, [refreshKey]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Mail size={16} className="text-blue-500" />
-        <h2 className="text-sm font-bold uppercase tracking-wide text-gray-500">
-          Communication Log
-        </h2>
-      </div>
+    <div className="glass rounded-xl p-5 fade-up" style={{ animationDelay: "600ms" }}>
+      <h2 className="font-display text-base mb-4" style={{ color: "rgb(var(--ink))" }}>
+        Communications
+      </h2>
 
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-4">
         <button
           onClick={() => setTab("emails")}
-          className={`px-3 py-1 text-xs rounded-full font-semibold ${
-            tab === "emails" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
-          }`}
+          className="pill transition-colors"
+          style={{
+            background: tab === "emails" ? "rgba(var(--grove), 0.1)" : "rgba(var(--ink), 0.04)",
+            color: tab === "emails" ? "rgb(var(--grove))" : "rgba(var(--ink), 0.4)",
+          }}
         >
           Emails ({emails.length})
         </button>
         <button
           onClick={() => setTab("signatures")}
-          className={`px-3 py-1 text-xs rounded-full font-semibold ${
-            tab === "signatures" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-500"
-          }`}
+          className="pill transition-colors"
+          style={{
+            background: tab === "signatures" ? "rgba(var(--accent), 0.12)" : "rgba(var(--ink), 0.04)",
+            color: tab === "signatures" ? "rgb(var(--accent))" : "rgba(var(--ink), 0.4)",
+          }}
         >
           Signatures ({signatures.length})
         </button>
       </div>
 
-      <div className="space-y-2 max-h-64 overflow-y-auto">
+      <div className="space-y-2 max-h-64 overflow-y-auto custom-scroll">
         {tab === "emails" &&
           emails.map((e, i) => (
-            <div key={i} className="text-sm p-2 bg-gray-50 rounded">
-              <p className="font-semibold text-gray-800">{e.subject}</p>
-              <p className="text-xs text-gray-500">To: {e.to}</p>
-              <p className="text-xs text-gray-400 mt-1 line-clamp-2">{e.body}</p>
+            <div
+              key={i}
+              className="text-sm p-3 rounded-lg"
+              style={{ background: "rgba(var(--mist), 0.25)" }}
+            >
+              <p className="font-semibold" style={{ color: "rgb(var(--ink))" }}>{e.action}</p>
+              <p className="text-xs mt-1 line-clamp-2" style={{ color: "rgba(var(--ink), 0.35)" }}>{e.details}</p>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(var(--ink), 0.4)" }}>{new Date(e.created_at).toLocaleString()}</p>
             </div>
           ))}
         {tab === "signatures" &&
           signatures.map((s, i) => (
-            <div key={i} className="text-sm p-2 bg-gray-50 rounded">
-              <p className="font-semibold text-gray-800">{s.document_name}</p>
-              <p className="text-xs text-gray-500">
-                {s.client_name} ({s.client_email})
+            <div
+              key={i}
+              className="text-sm p-3 rounded-lg"
+              style={{ background: "rgba(var(--mist), 0.25)" }}
+            >
+              <p className="font-semibold" style={{ color: "rgb(var(--ink))" }}>{s.action}</p>
+              <p className="text-xs mt-1 line-clamp-2" style={{ color: "rgba(var(--ink), 0.35)" }}>{s.details}</p>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(var(--ink), 0.4)" }}>
+                {new Date(s.created_at).toLocaleString()}
               </p>
             </div>
           ))}
         {tab === "emails" && emails.length === 0 && (
-          <p className="text-xs text-gray-400 text-center py-4">No emails sent yet</p>
+          <p className="text-xs text-center py-6" style={{ color: "rgba(var(--ink), 0.25)" }}>No emails sent yet</p>
         )}
         {tab === "signatures" && signatures.length === 0 && (
-          <p className="text-xs text-gray-400 text-center py-4">No signature requests yet</p>
+          <p className="text-xs text-center py-6" style={{ color: "rgba(var(--ink), 0.25)" }}>No signature requests yet</p>
         )}
       </div>
     </div>

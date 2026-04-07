@@ -37,30 +37,33 @@ export default function AddClientModal({ onClose, onDone }: AddClientModalProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <UserPlus size={18} className="text-emerald-600" />
-            <h2 className="text-lg font-bold text-gray-900">Add Client</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(var(--ink), 0.35)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div className="glass rounded-2xl w-full max-w-md shadow-2xl fade-up" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: "1px solid rgba(var(--mist), 0.5)" }}
+        >
+          <div className="flex items-center gap-2.5">
+            <UserPlus size={16} style={{ color: "rgb(var(--grove))" }} />
+            <h2 className="font-display text-lg" style={{ color: "rgb(var(--ink))" }}>New Client</h2>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} style={{ color: "rgba(var(--ink), 0.3)" }} className="hover:opacity-70 transition-opacity">
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-3">
-          <Field label="Full Name *" value={name} onChange={setName} required />
-          <Field label="Email *" value={email} onChange={setEmail} type="email" required />
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-3">
+          <Field label="Full Name" value={name} onChange={setName} required />
+          <Field label="Email" value={email} onChange={setEmail} type="email" required />
           <Field label="Phone" value={phone} onChange={setPhone} type="tel" />
           <Field label="Company" value={company} onChange={setCompany} />
           <Field label="State" value={state} onChange={setState} placeholder="CA" />
           <Field label="Referral Source" value={referral} onChange={setReferral} placeholder="Website, Referral, etc." />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-          >
+          <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-2.5 mt-1">
             {loading ? "Adding..." : "Add Client"}
           </button>
         </form>
@@ -86,14 +89,16 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "rgba(var(--ink), 0.4)" }}>
+        {label}
+      </label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+        className="input-refined"
       />
     </div>
   );

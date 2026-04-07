@@ -12,20 +12,18 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-DEVIN_API_KEY = os.getenv("DEVIN_API_KEY", "")
-DEVIN_ORG_ID = os.getenv("DEVIN_ORG_ID", "")
 DEVIN_API_BASE = "https://api.devin.ai/v3"
 
 
 def _headers() -> dict[str, str]:
     return {
-        "Authorization": f"Bearer {DEVIN_API_KEY}",
+        "Authorization": f"Bearer {os.getenv('DEVIN_API_KEY', '')}",
         "Content-Type": "application/json",
     }
 
 
 def _is_configured() -> bool:
-    return bool(DEVIN_API_KEY and DEVIN_ORG_ID)
+    return bool(os.getenv("DEVIN_API_KEY", "") and os.getenv("DEVIN_ORG_ID", ""))
 
 
 async def create_session(prompt: str, playbook_id: str | None = None) -> dict:
@@ -46,7 +44,7 @@ async def create_session(prompt: str, playbook_id: str | None = None) -> dict:
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(
-            f"{DEVIN_API_BASE}/organizations/{DEVIN_ORG_ID}/sessions",
+            f"{DEVIN_API_BASE}/organizations/{os.getenv('DEVIN_ORG_ID', '')}/sessions",
             headers=_headers(),
             json=body,
         )
@@ -66,7 +64,7 @@ async def get_session_status(session_id: str) -> dict:
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(
-            f"{DEVIN_API_BASE}/organizations/{DEVIN_ORG_ID}/sessions/{session_id}",
+            f"{DEVIN_API_BASE}/organizations/{os.getenv('DEVIN_ORG_ID', '')}/sessions/{session_id}",
             headers=_headers(),
         )
         resp.raise_for_status()

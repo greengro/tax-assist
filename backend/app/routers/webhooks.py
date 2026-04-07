@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Activity, Client, ClientType, DocumentChecklist, PipelineStage
 from app.schemas import MeetingNotesPayload
-from app.services import devin_api, mock_services
+from app.services import devin_api
+from app.services import gmail, google_docs, google_drive, google_sheets
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -70,21 +71,27 @@ async def handle_calendly_webhook(payload: dict, db: AsyncSession = Depends(get_
 
     await db.flush()
 
-    # Create folder
-    folder = await mock_services.create_client_folder(name)
-    client.folder_url = folder.url
+    # Create folder (real Google Drive or mock fallback)
+    folder = await google_drive.create_client_folder(name)
+    client.folder_url = folder["url"]
 
     db.add(Activity(client_id=client.id, action="Calendly booking received", details=detail))
 
-    # Send welcome email
-    await mock_services.send_email(
+    # Send welcome email (real Gmail or mock fallback)
+    welcome_subject = "Welcome to Green Grove Tax Services - Your Upcoming Consultation"
+    await gmail.send_email(
         to=email,
-        subject="Welcome to Green Grove Tax Services - Your Upcoming Consultation",
+        subject=welcome_subject,
         body=f"Hi {name},\n\nThank you for booking a consultation! "
         f"Your meeting is scheduled for {meeting_time_str or 'soon'}.\n\n"
         "Please prepare: W-2s, 1099s, prior year returns.\n\n"
         "Best regards,\nGreen Grove Tax Services",
     )
+    db.add(Activity(
+        client_id=client.id,
+        action="Welcome email sent",
+        details=f"To: {email} | Subject: {welcome_subject}",
+    ))
 
     # Trigger Devin onboarding session
     devin_result = await devin_api.create_session(
@@ -100,12 +107,18 @@ async def handle_calendly_webhook(payload: dict, db: AsyncSession = Depends(get_
     await db.commit()
     await db.refresh(client)
 
+    # Sync to Google Sheets CRM
+    try:
+        await google_sheets.upsert_client(client)
+    except Exception:
+        logger.warning("Failed to sync client %s to Google Sheets", client.id, exc_info=True)
+
     return {
         "status": "processed",
         "client_id": client.id,
         "stage": client.stage.value,
         "devin_session_id": devin_result["session_id"],
-        "folder_url": folder.url,
+        "folder_url": folder["url"],
     }
 
 
@@ -151,20 +164,32 @@ async def handle_meeting_notes(
         devin_session_id=devin_result["session_id"],
     ))
 
-    # Send follow-up email
-    await mock_services.send_email(
+    # Send follow-up email (real Gmail or mock fallback)
+    followup_subject = "Next Steps - Green Grove Tax Services"
+    await gmail.send_email(
         to=client.email,
-        subject="Next Steps - Green Grove Tax Services",
+        subject=followup_subject,
         body=f"Hi {client.name},\n\nThank you for meeting with us!\n\n"
         f"Please upload your documents through our secure portal:\n{portal_url}\n\n"
         "Required: W-2s, 1099s, prior year return, property tax statements.\n\n"
         "Best regards,\nGreen Grove Tax Services",
     )
+    db.add(Activity(
+        client_id=client.id,
+        action="Follow-up email sent",
+        details=f"To: {client.email} | Subject: {followup_subject}",
+    ))
 
     client.stage = PipelineStage.DOCUMENTS_REQUESTED
 
     await db.commit()
     await db.refresh(client)
+
+    # Sync to Google Sheets CRM
+    try:
+        await google_sheets.upsert_client(client)
+    except Exception:
+        logger.warning("Failed to sync client %s to Google Sheets", client.id, exc_info=True)
 
     return {
         "status": "processed",
@@ -194,19 +219,63 @@ async def trigger_engagement_letter(
     client.stage = PipelineStage.ENGAGEMENT_LETTER_SENT
     client.scope_of_services = services
 
-    # Mock sending for signature
-    await mock_services.send_for_signature(client.name, client.email, "Engagement Letter")
-    await mock_services.send_for_signature(client.name, client.email, "Statement of Work")
+    # Extract folder ID from folder_url for placing docs in client folder
+    folder_id = None
+    if client.folder_url and "folders/" in client.folder_url:
+        folder_id = client.folder_url.rsplit("folders/", 1)[-1].split("?")[0].split("#")[0]
 
+    # Create real Google Docs (engagement letter + SOW)
+    letter_result = await google_docs.create_engagement_letter(
+        client_name=client.name, client_email=client.email,
+        services=services, fee_estimate=client.fee_estimate,
+        folder_id=folder_id,
+    )
+    sow_result = await google_docs.create_statement_of_work(
+        client_name=client.name, client_email=client.email,
+        services=services, fee_estimate=client.fee_estimate,
+        folder_id=folder_id,
+    )
+
+    # Send email with links to the documents
+    eng_subject = "Engagement Letter & Statement of Work - Green Grove Tax Services"
+    await gmail.send_email(
+        to=client.email,
+        subject=eng_subject,
+        body=f"Hi {client.name},\n\n"
+        f"Please review and sign the following documents:\n\n"
+        f"1. Engagement Letter: {letter_result['doc_url']}\n"
+        f"2. Statement of Work: {sow_result['doc_url']}\n\n"
+        f"Services: {services}\n\n"
+        f"Please reply to this email once you have reviewed and agree to the terms.\n\n"
+        f"Best regards,\nGreen Grove Tax Services",
+    )
     db.add(Activity(
         client_id=client.id,
-        action="Engagement letter & SOW sent for signature",
-        details=f"Services: {services}. Devin session: {devin_result['session_id']}",
+        action="Engagement letter email sent",
+        details=f"To: {client.email} | Subject: {eng_subject}",
+    ))
+
+    doc_details = (
+        f"Services: {services}. "
+        f"Letter: {letter_result['doc_url']}. "
+        f"SOW: {sow_result['doc_url']}. "
+        f"Devin session: {devin_result['session_id']}"
+    )
+    db.add(Activity(
+        client_id=client.id,
+        action="Engagement letter & SOW created in Google Docs",
+        details=doc_details,
         devin_session_id=devin_result["session_id"],
     ))
 
     await db.commit()
     await db.refresh(client)
+
+    # Sync to Google Sheets CRM
+    try:
+        await google_sheets.upsert_client(client)
+    except Exception:
+        logger.warning("Failed to sync client %s to Google Sheets", client.id, exc_info=True)
 
     return {
         "status": "processed",
@@ -237,12 +306,18 @@ async def check_documents(client_id: int, db: AsyncSession = Depends(get_db)):
             details=f"Missing: {', '.join(missing)}. Devin session: {devin_result['session_id']}",
             devin_session_id=devin_result["session_id"],
         ))
-        await mock_services.send_email(
+        reminder_subject = "Reminder: Missing Documents - Green Grove Tax Services"
+        await gmail.send_email(
             to=client.email,
-            subject="Reminder: Missing Documents - Green Grove Tax Services",
+            subject=reminder_subject,
             body=f"Hi {client.name},\n\nWe still need: {', '.join(missing)}.\n\n"
             f"Upload at: {portal_url}\n\nBest regards,\nGreen Grove Tax Services",
         )
+        db.add(Activity(
+            client_id=client.id,
+            action="Document reminder email sent",
+            details=f"To: {client.email} | Subject: {reminder_subject}",
+        ))
         await db.commit()
         return {"status": "follow_up_sent", "missing_documents": missing,
                 "devin_session_id": devin_result["session_id"]}

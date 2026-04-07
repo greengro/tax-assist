@@ -1,4 +1,4 @@
-import { PipelineStageSummary, STAGE_BORDER_COLORS } from "../lib/types";
+import { PipelineStageSummary, STAGE_DOT_COLORS } from "../lib/types";
 
 interface PipelineBoardProps {
   stages: PipelineStageSummary[];
@@ -14,30 +14,46 @@ export default function PipelineBoard({
   onSendLetter,
 }: PipelineBoardProps) {
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4 px-1">
-      {stages.map((stage) => (
+    <div className="flex gap-3 overflow-x-auto pb-4 custom-scroll">
+      {stages.map((stage, i) => (
         <div
           key={stage.stage}
-          className="min-w-52 max-w-64 flex-1 bg-white rounded-xl shadow-sm flex flex-col"
+          className="min-w-48 max-w-60 flex-1 glass rounded-xl flex flex-col fade-up"
+          style={{ animationDelay: `${300 + i * 50}ms` }}
         >
-          <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              {stage.label}
-            </h3>
-            <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-semibold">
-              {stage.count}
-            </span>
+          {/* Column header */}
+          <div className="px-3 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(var(--mist), 0.5)" }}>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${STAGE_DOT_COLORS[stage.stage]}`} />
+              <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "rgba(var(--ink), 0.45)" }}>
+                {stage.label}
+              </h3>
+            </div>
+            {stage.count > 0 && (
+              <span
+                className="pill"
+                style={{ background: "rgba(var(--ink), 0.06)", color: "rgba(var(--ink), 0.5)" }}
+              >
+                {stage.count}
+              </span>
+            )}
           </div>
-          <div className="p-2 flex-1 min-h-20 space-y-2">
+
+          {/* Cards */}
+          <div className="p-2 flex-1 min-h-16 space-y-2">
             {stage.clients.map((client) => (
               <div
                 key={client.id}
                 onClick={() => onClientClick(client.id)}
-                className={`bg-gray-50 rounded-lg p-3 cursor-pointer hover:shadow-md transition-all border-l-3 ${STAGE_BORDER_COLORS[stage.stage]} hover:-translate-y-0.5`}
+                className="rounded-lg p-3 cursor-pointer hover-lift"
+                style={{
+                  background: "rgba(255,255,255,0.8)",
+                  border: "1px solid rgba(var(--mist), 0.4)",
+                }}
               >
-                <p className="font-semibold text-sm text-gray-900">{client.name}</p>
-                <p className="text-xs text-gray-500 truncate">{client.email}</p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="font-semibold text-sm" style={{ color: "rgb(var(--ink))" }}>{client.name}</p>
+                <p className="text-xs truncate mt-0.5" style={{ color: "rgba(var(--ink), 0.4)" }}>{client.email}</p>
+                <p className="text-xs mt-1.5" style={{ color: "rgba(var(--ink), 0.3)" }}>
                   {client.meeting_time
                     ? new Date(client.meeting_time).toLocaleDateString()
                     : new Date(client.created_at).toLocaleDateString()}
@@ -45,7 +61,7 @@ export default function PipelineBoard({
                 {stage.stage === "intro_booked" && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onProcessMeeting(client.email); }}
-                    className="mt-2 text-xs px-2 py-1 border border-emerald-600 text-emerald-700 rounded hover:bg-emerald-50 transition-colors"
+                    className="btn-ghost mt-2 text-xs py-1 px-2"
                   >
                     Process Meeting
                   </button>
@@ -53,7 +69,8 @@ export default function PipelineBoard({
                 {stage.stage === "documents_received" && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onSendLetter(client.id); }}
-                    className="mt-2 text-xs px-2 py-1 border border-purple-600 text-purple-700 rounded hover:bg-purple-50 transition-colors"
+                    className="btn-ghost mt-2 text-xs py-1 px-2"
+                    style={{ color: "rgb(var(--accent))", borderColor: "rgba(var(--accent), 0.3)" }}
                   >
                     Send Letter
                   </button>
@@ -61,7 +78,9 @@ export default function PipelineBoard({
               </div>
             ))}
             {stage.count === 0 && (
-              <p className="text-xs text-gray-400 text-center py-4">No clients</p>
+              <p className="text-xs text-center py-6" style={{ color: "rgba(var(--ink), 0.2)" }}>
+                &mdash;
+              </p>
             )}
           </div>
         </div>
