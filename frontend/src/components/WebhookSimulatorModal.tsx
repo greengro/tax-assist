@@ -17,8 +17,8 @@ export default function WebhookSimulatorModal({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState("John Smith");
+  const [email, setEmail] = useState("john@example.com");
   const [meetingTime, setMeetingTime] = useState("");
 
   const [meetingEmail, setMeetingEmail] = useState(prefillEmail || "");
