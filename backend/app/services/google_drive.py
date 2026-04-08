@@ -70,27 +70,13 @@ async def create_client_folder(
             "subfolders": {sf: f"{mock_url}/{sf.lower().replace(' ', '-')}" for sf in subfolders},
         }
 
+    # Create the top-level client folder
     try:
-        # Create the top-level client folder
         folder = await asyncio.to_thread(
             _create_folder_sync, service, client_name, parent_folder_id,
         )
         folder_id = folder["id"]
         folder_url = folder.get("webViewLink", f"https://drive.google.com/drive/folders/{folder_id}")
-
-        logger.info("[GOOGLE DRIVE] Created folder '%s' → %s", client_name, folder_url)
-
-        # Create subfolders inside the client folder
-        created_subfolders: dict[str, str] = {}
-        for sf_name in subfolders:
-            sf = await asyncio.to_thread(
-                _create_folder_sync, service, sf_name, folder_id,
-            )
-            sf_url = sf.get("webViewLink", f"https://drive.google.com/drive/folders/{sf['id']}")
-            created_subfolders[sf_name] = sf_url
-            logger.info("[GOOGLE DRIVE]   ↳ Subfolder '%s' → %s", sf_name, sf_url)
-
-        return {"name": client_name, "url": folder_url, "subfolders": created_subfolders}
     except Exception:
         logger.exception("[GOOGLE DRIVE] Failed to create folder for '%s'", client_name)
         slug = client_name.lower().replace(" ", "-")
@@ -100,3 +86,20 @@ async def create_client_folder(
             "url": mock_url,
             "subfolders": {sf: f"{mock_url}/{sf.lower().replace(' ', '-')}" for sf in subfolders},
         }
+
+    logger.info("[GOOGLE DRIVE] Created folder '%s' → %s", client_name, folder_url)
+
+    # Create subfolders inside the client folder
+    created_subfolders: dict[str, str] = {}
+    for sf_name in subfolders:
+        try:
+            sf = await asyncio.to_thread(
+                _create_folder_sync, service, sf_name, folder_id,
+            )
+            sf_url = sf.get("webViewLink", f"https://drive.google.com/drive/folders/{sf['id']}")
+            created_subfolders[sf_name] = sf_url
+            logger.info("[GOOGLE DRIVE]   ↳ Subfolder '%s' → %s", sf_name, sf_url)
+        except Exception:
+            logger.exception("[GOOGLE DRIVE] Failed to create subfolder '%s' in '%s'", sf_name, client_name)
+
+    return {"name": client_name, "url": folder_url, "subfolders": created_subfolders}
